@@ -1639,13 +1639,14 @@ func (p *Package) gccErrors(stdin []byte) string {
 	// TODO(rsc): require failure
 	args := p.gccCmd()
 
-	// Optimization options can confuse the error messages; remove them.
+	// Optimization options can confuse the error messages; remove them and force -O0.
 	nargs := make([]string, 0, len(args))
 	for _, arg := range args {
 		if !strings.HasPrefix(arg, "-O") {
 			nargs = append(nargs, arg)
 		}
 	}
+	nargs = append(nargs, "-O0")
 
 	if *debugGcc {
 		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(nargs, " "))
