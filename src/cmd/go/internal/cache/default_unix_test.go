@@ -3,7 +3,6 @@
 package cache
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
@@ -13,15 +12,15 @@ func TestDefaultDir(t *testing.T) {
 	xdgCacheDir := "/tmp/test-xdg-cache"
 	homeDir := "/tmp/test-home"
 
-	defer func(GOCACHE, XDG_CACHE_HOME, HOME string) {
-		os.Setenv("GOCACHE", GOCACHE)
-		os.Setenv("XDG_CACHE_HOME", XDG_CACHE_HOME)
-		os.Setenv("HOME", HOME)
-	}(os.Getenv("GOCACHE"), os.Getenv("XDG_CACHE_HOME"), os.Getenv("HOME"))
+	defer func() {
+		env = nil
+	}()
 
-	os.Setenv("GOCACHE", goCacheDir)
-	os.Setenv("XDG_CACHE_HOME", xdgCacheDir)
-	os.Setenv("HOME", homeDir)
+	env = envShim{
+		"GOCACHE":        goCacheDir,
+		"XDG_CACHE_HOME": xdgCacheDir,
+		"HOME":           homeDir,
+	}
 
 	dir, showWarnings := defaultDir()
 	if dir != goCacheDir {
@@ -31,7 +30,7 @@ func TestDefaultDir(t *testing.T) {
 		t.Error("Warnings should be shown when $GOCACHE is set")
 	}
 
-	os.Unsetenv("GOCACHE")
+	delete(env, "GOCACHE")
 	dir, showWarnings = defaultDir()
 	if !strings.HasPrefix(dir, xdgCacheDir+"/") {
 		t.Errorf("Cache DefaultDir %q should be under $XDG_CACHE_HOME %q when $GOCACHE is unset", dir, xdgCacheDir)
@@ -40,7 +39,7 @@ func TestDefaultDir(t *testing.T) {
 		t.Error("Warnings should be shown when $XDG_CACHE_HOME is set")
 	}
 
-	os.Unsetenv("XDG_CACHE_HOME")
+	delete(env, "XDG_CACHE_HOME")
 	dir, showWarnings = defaultDir()
 	if !strings.HasPrefix(dir, homeDir+"/.cache/") {
 		t.Errorf("Cache DefaultDir %q should be under $HOME/.cache %q when $GOCACHE and $XDG_CACHE_HOME are unset", dir, homeDir+"/.cache")
@@ -49,12 +48,12 @@ func TestDefaultDir(t *testing.T) {
 		t.Error("Warnings should be shown when $HOME is not /")
 	}
 
-	os.Unsetenv("HOME")
+	delete(env, "HOME")
 	if dir, _ := defaultDir(); dir != "off" {
 		t.Error("Cache not disabled when $GOCACHE, $XDG_CACHE_HOME, and $HOME are unset")
 	}
 
-	os.Setenv("HOME", "/")
+	env["HOME"] = "/"
 	if _, showWarnings := defaultDir(); showWarnings {
 		// https://golang.org/issue/26280
 		t.Error("Cache initalization warnings should be squelched when $GOCACHE and $XDG_CACHE_HOME are unset and $HOME is /")

@@ -22,6 +22,7 @@ func Default() *Cache {
 var (
 	defaultOnce  sync.Once
 	defaultCache *Cache
+	env          envShim
 )
 
 // cacheREADME is a message stored in a README in the cache directory.
@@ -60,6 +61,15 @@ func initDefaultCache() {
 	defaultCache = c
 }
 
+type envShim map[string]string
+
+func (shim envShim) get(name string) string {
+	if shim != nil {
+		return shim[name]
+	}
+	return os.Getenv(name)
+}
+
 // DefaultDir returns the effective GOCACHE setting.
 // It returns "off" if the cache is disabled.
 func DefaultDir() string {
@@ -72,7 +82,7 @@ func DefaultDir() string {
 // The second return value reports whether warnings should
 // be shown if the cache fails to initialize.
 func defaultDir() (string, bool) {
-	dir := os.Getenv("GOCACHE")
+	dir := env.get("GOCACHE")
 	if dir != "" {
 		return dir, true
 	}
@@ -83,25 +93,25 @@ func defaultDir() (string, bool) {
 	showWarnings := true
 	switch runtime.GOOS {
 	case "windows":
-		dir = os.Getenv("LocalAppData")
+		dir = env.get("LocalAppData")
 		if dir == "" {
 			// Fall back to %AppData%, the old name of
 			// %LocalAppData% on Windows XP.
-			dir = os.Getenv("AppData")
+			dir = env.get("AppData")
 		}
 		if dir == "" {
 			return "off", true
 		}
 
 	case "darwin":
-		dir = os.Getenv("HOME")
+		dir = env.get("HOME")
 		if dir == "" {
 			return "off", true
 		}
 		dir += "/Library/Caches"
 
 	case "plan9":
-		dir = os.Getenv("home")
+		dir = env.get("home")
 		if dir == "" {
 			return "off", true
 		}
@@ -111,9 +121,9 @@ func defaultDir() (string, bool) {
 
 	default: // Unix
 		// https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
-		dir = os.Getenv("XDG_CACHE_HOME")
+		dir = env.get("XDG_CACHE_HOME")
 		if dir == "" {
-			dir = os.Getenv("HOME")
+			dir = env.get("HOME")
 			if dir == "" {
 				return "off", true
 			}
